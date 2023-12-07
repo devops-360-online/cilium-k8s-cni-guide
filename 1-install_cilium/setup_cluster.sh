@@ -141,8 +141,8 @@ scp -r $HOME/.kube gary@$node1:/home/gary
 
 
 #**************************************************Cluster installation tests*******************************************************
-#Optionally untaintthe master node
-kubectl taint node kube-master node-role.kubernetes.io/master-
+#Optionally untaint the master node
+kubectl taint nodes master-node node-role.kubernetes.io/master=:NoSchedule
 
 #Schedule a Kubernetes deployment using a container from Google samples
 kubectl create deployment hello-world --image=gcr.io/google-samples/hello-app:1.0
