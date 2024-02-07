@@ -158,6 +158,12 @@ kubectl get service hello-world
 
 kubectl exec -it -n kube-system $MASTER_CILIUM_POD -- cilium service list
 
+
+# Each pod will also be represented in Cilium as an Endpoint. 
+# To retrieve a list of all endpoints managed by Cilium, the Cilium Endpoint (or cep) resource can be used:
+kubectl get cep --all-namespaces
+
+
 #Verify that iptables are not used
 sudo iptables-save | grep KUBE-SVC
 #### If you have a problem with iptables: sudo iptables-save | grep KUBE-SVC
