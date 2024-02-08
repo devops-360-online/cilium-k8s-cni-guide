@@ -221,3 +221,6 @@ hubble status
 cilium hubble enable --ui
 
 cilium hubble ui
+
+################ I HAD a PROBLEM wihth NETWORKING VM for Hubble UI, I had to run the following commands to fix it
+ vagrant ssh master -- -L 8080:localhost:12000
