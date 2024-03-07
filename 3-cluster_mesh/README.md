@@ -29,7 +29,7 @@ nodes:
 #This cluster will feature one control-plane node and 2 worker nodes, and use 10.1.0.0/16 for the Pod network, and 172.20.1.0/24 for the Services.
 
 # ⚠️ In the Koornacht tab
-kind create cluster --name koornacht --config kind_koornacht.yaml
+kind create cluster --name koornacht --config kind_koornacht.yml
 
 # ⚠️ In the Koornacht tab
 kubectl get nodes
@@ -43,10 +43,7 @@ koornacht-worker2         NotReady   <none>          8s    v1.27.3
 The nodes are marked as NotReady because there is not CNI plugin set up yet.
 
 # ⚠️ In the Koornacht tab
-cilium install \
-  --set cluster.name=koornacht \
-  --set cluster.id=1 \
-  --set ipam.mode=kubernetes
+cilium install --set cluster.name=kind-koornacht --set cluster.id=1 --set ipam.mode=kubernetes --set image.pullPolicy=IfNotPresent -n kube-system  --context kind-koornacht
 
 Let's also enable Hubble for observability, only on the Koornacht cluster:
   # ⚠️ In the Koornacht tab
@@ -99,16 +96,13 @@ nodes:
 This Tion cluster will also feature one control-plane node and 2 worker nodes, but it will use 10.2.0.0/16 for the Pod network, and 172.20.2.0/24 for the Services.
 
 # ⚠️ In the Tion tab
-kind create cluster --name tion --config kind_tion.yaml
+kind create cluster --name tion --config kind_tion.yml
 
 # ⚠️ In the Tion tab
 kubectl get nodes
 
 # ⚠️ In the Tion tab
-cilium install \
-  --set cluster.name=tion \
-  --set cluster.id=2 \
-  --set ipam.mode=kubernetes
+cilium install --set cluster.name=kind-tion --set cluster.id=2 --set ipam.mode=kubernetes --set image.pullPolicy=IfNotPresent -n kube-system  --context kind-tion
 
 # ⚠️ In the Tion tab
 cilium status --wait
@@ -128,6 +122,29 @@ Helm chart version:    1.14.1
 Image versions         cilium             quay.io/cilium/cilium:v1.14.1@sha256:edc1d05ea1365c4a8f6ac6982247d5c145181704894bb698619c3827b6963a72: 3
                        cilium-operator    quay.io/cilium/operator-generic:v1.14.1@sha256:e061de0a930534c7e3f8feda8330976367971238ccafff42659f104effd4b5f7: 1
 
+
+___________________________________________
+Install Hubble
+
+kubectl get secret -n kube-system -o wide | grep cilium-ca
+
+cilium hubble enable --create-ca 
+
+kubectl get secret -n kube-system -o wide | grep cilium-ca
+
+#In order to access the observability data collected by Hubble, install the Hubble CL
+export HUBBLE_VERSION=$(curl -s https://raw.githubusercontent.com/cilium/hubble/master/stable.txt)
+curl -L --remote-name-all https://github.com/cilium/hubble/releases/download/$HUBBLE_VERSION/hubble-linux-amd64.tar.gz{,.sha256sum}
+sha256sum --check hubble-linux-amd64.tar.gz.sha256sum
+sudo tar xzvfC hubble-linux-amd64.tar.gz /usr/local/bin
+rm hubble-linux-amd64.tar.gz{,.sha256sum}
+
+#In order to access the Hubble API, create a port forward to the Hubble service from your local machine
+cilium hubble port-forward&
+
+hubble status 
+
+hubble observe
 ____________________________
 By default, all communication is allowed between the pods. In order to implement Network Policies, we thus need to start with a default deny rule, which will disallow communication. We will then add specific rules to add the traffic we want to allow.
 
@@ -206,3 +223,25 @@ koornacht-control-plane   Ready    control-plane   106m   v1.27.3
 koornacht-worker          Ready    <none>          105m   v1.27.3
 koornacht-worker2         Ready    <none>          105m   v1.27.3
 
+_________________
+CLUSTER1="kind-koornacht"
+CLUSTER2="kind-tion"
+
+
+cilium clustermesh enable --context $CLUSTER1 --service-type LoadBalancer 
+cilium clustermesh enable --context $CLUSTER2 --service-type LoadBalancer 
+
+#Check teh status
+cilium clustermesh status --context $CLUSTER1 --wait
+cilium clustermesh status --context $CLUSTER2 --wait
+
+cilium clustermesh connect --context $CLUSTER1 --destination-context $CLUSTER2
+cilium clustermesh connect --context $CLUSTER2 --destination-context $CLUSTER1
+
+for i in $(seq 1 10000); 
+do  kubectl exec -ti deployment/x-wing -- curl rebel-base 
+done
+
+
+kubectl exec -ti deployment/x-wing -- curl rebel-base.default.svc.cluster.local
+kubectl exec -ti deployment/hello-world -- wget  hello-world.default.svc.cluster.local:8080 
