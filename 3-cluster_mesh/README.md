@@ -228,8 +228,10 @@ CLUSTER1="kind-koornacht"
 CLUSTER2="kind-tion"
 
 
-cilium clustermesh enable --context $CLUSTER1 --service-type LoadBalancer 
-cilium clustermesh enable --context $CLUSTER2 --service-type LoadBalancer 
+cilium clustermesh enable --context $CLUSTER1 --service-type LoadBalancer #NodePort
+cilium clustermesh enable --context $CLUSTER2 --service-type LoadBalancer #NodePort
+
+You will not have 
 
 #Check teh status
 cilium clustermesh status --context $CLUSTER1 --wait
